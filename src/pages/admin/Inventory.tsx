@@ -72,7 +72,6 @@ export default function Inventory() {
   };
   const [searchQuery, setSearchQuery] = useState('');
   const [stockLocation, setStockLocation] = useState<'all' | 'warehouse' | 'display'>('all');
-  const [seasonFilter, setSeasonFilter] = useState<'all' | 'summer' | 'winter' | 'annual'>('all');
   const [warehouseQty, setWarehouseQty] = useState(0); // كمية المستودع عند إضافة منتج جديد
   const [newCategoryName, setNewCategoryName] = useState('');
   const [showCatForm, setShowCatForm] = useState(false);
@@ -891,17 +890,8 @@ export default function Inventory() {
         </div>
       </div>
 
-      {/* فلاتر: الموسم + المخزن */}
+      {/* فلاتر: المخزن */}
       <div className="flex items-center gap-3 flex-wrap mb-2">
-        <div className="flex items-center gap-2 bg-white dark:bg-slate-800 rounded-2xl p-2 shadow-sm border border-slate-100 dark:border-slate-700 w-fit">
-          <span className="text-xs font-bold text-slate-500 dark:text-slate-400 px-2">الموسم:</span>
-          {([['all', 'الكل'], ['summer', 'صيفي'], ['winter', 'شتوي'], ['annual', 'سنوي']] as const).map(([k, label]) => (
-            <button key={k} onClick={() => setSeasonFilter(k)}
-              className={`px-4 py-2 rounded-xl text-sm font-bold transition ${seasonFilter === k ? 'bg-amber-500 text-white shadow' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'}`}>
-              {label}
-            </button>
-          ))}
-        </div>
         <div className="flex items-center gap-2 bg-white dark:bg-slate-800 rounded-2xl p-2 shadow-sm border border-slate-100 dark:border-slate-700 w-fit">
           <span className="text-xs font-bold text-slate-500 dark:text-slate-400 px-2">المخزن:</span>
           {([['all', 'الكل'], ['warehouse', 'المستودع'], ['display', 'المحل']] as const).map(([k, label]) => (
