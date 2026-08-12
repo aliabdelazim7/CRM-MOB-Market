@@ -429,7 +429,11 @@ insert into shipping_carriers (id, name, phone, email, tracking_url_template, st
   ('sc_3', 'SMSA Express', '0227998877', 'support@smsaexpress.com', 'https://www.smsaexpress.com/track/{TN}', 'active')
 on conflict (id) do nothing;
 
--- 4. التصنيفات
+-- 4. إخلاء المنتجات والتصنيفات القديمة وتأسيس تصنيفات السوبر ماركت
+delete from order_items;
+delete from products;
+delete from categories;
+
 insert into categories (id, name, image_url) values
   ('cat_dairy',    'ألبان ومجمدات',   'https://images.unsplash.com/photo-1628088062854-d1870b4553da?w=500&q=80'),
   ('cat_dry',      'بقالة جافة',     'https://images.unsplash.com/photo-1586201375761-83865001e31c?w=500&q=80'),
