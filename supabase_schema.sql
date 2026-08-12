@@ -79,6 +79,7 @@ alter table products add column if not exists display_quantity numeric default 0
 alter table products add column if not exists factory_quantity numeric default 0;
 alter table products add column if not exists category_id text;
 alter table products add column if not exists unit text default 'قطعة';
+alter table products add column if not exists alert_threshold numeric default 5;
 alter table products add column if not exists is_hidden boolean default false;
 alter table products add column if not exists supplier_name text;
 alter table products add column if not exists custom_stores jsonb;

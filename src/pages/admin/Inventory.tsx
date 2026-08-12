@@ -505,11 +505,11 @@ export default function Inventory() {
       return;
     }
 
-    // نجاح جزئي: فيه حقول (زي صورة المنتج) أعمدتها مش موجودة في قاعدة البيانات
-    // فاتخطّت. لازم نقول للمستخدم بدل ما يفتكر إنها اتحفظت وتختفي بعد التحديث.
+    // تحذير في حالة عدم وجود حقول أصلية أساسية في السكيمة (مثل الصورة أو الاسم أو السعر)
     const skipped = useStore.getState().lastSkippedProductColumns;
-    if (skipped.length > 0) {
-      const names = skipped.map(c => PRODUCT_LABEL_AR[c] || c).join('، ');
+    const criticalSkipped = skipped.filter(c => ['image_url', 'barcode', 'name', 'sale_price', 'purchase_price', 'unit'].includes(c));
+    if (criticalSkipped.length > 0) {
+      const names = criticalSkipped.map(c => PRODUCT_LABEL_AR[c] || c).join('، ');
       alert(
         `اتحفظ الباقي ✅\n\nبس الحقول دي مش اتحفظت لأن أعمدتها مش موجودة في قاعدة البيانات:\n${names}\n\n` +
         `الحل: شغّل ملف ${PRODUCT_COLUMNS_FIX_SQL} في Supabase → SQL Editor، وبعدها احفظ تاني.`,
