@@ -79,9 +79,7 @@ alter table products add column if not exists display_quantity numeric default 0
 alter table products add column if not exists factory_quantity numeric default 0;
 alter table products add column if not exists category_id text;
 alter table products add column if not exists unit text default 'قطعة';
-alter table products add column if not exists season text;
 alter table products add column if not exists is_hidden boolean default false;
-alter table products add column if not exists color text;
 alter table products add column if not exists supplier_name text;
 alter table products add column if not exists custom_stores jsonb;
 
@@ -433,54 +431,57 @@ on conflict (id) do nothing;
 
 -- 4. التصنيفات
 insert into categories (id, name, image_url) values
-  ('cat_watches',     'ساعات رجالية ونسائية', 'https://images.unsplash.com/photo-1524805444758-089113d48a6d?w=500&q=80'),
-  ('cat_bags',        'حقائب وشنط فاخرة',    'https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=500&q=80'),
-  ('cat_accessories', 'إكسسوارات ومجوهرات',  'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=500&q=80'),
-  ('cat_glasses',     'نظارات شمسية طبية',   'https://images.unsplash.com/photo-1511499767150-a48a237f0083?w=500&q=80'),
-  ('cat_wallets',     'محافظ وأحزمة جلدية',   'https://images.unsplash.com/photo-1627123424574-724758594e93?w=500&q=80'),
-  ('cat_gifts',       'علاب وهدايا VIP',      'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?w=500&q=80')
-on conflict (id) do nothing;
+  ('cat_dairy',    'ألبان ومجمدات',   'https://images.unsplash.com/photo-1628088062854-d1870b4553da?w=500&q=80'),
+  ('cat_dry',      'بقالة جافة',     'https://images.unsplash.com/photo-1586201375761-83865001e31c?w=500&q=80'),
+  ('cat_beverages','مشروبات وحلويات', 'https://images.unsplash.com/photo-1527960471264-932f39eb5846?w=500&q=80'),
+  ('cat_cleaning', 'منظفات ورقيات',  'https://images.unsplash.com/photo-1585421514738-01798e348b17?w=500&q=80'),
+  ('cat_produce',  'خضار وفواكه',    'https://images.unsplash.com/photo-1610832958506-aa56368176cf?w=500&q=80'),
+  ('cat_meat',     'لحوم وأسماك',    'https://images.unsplash.com/photo-1607623814075-e51df1bdc82f?w=500&q=80')
+on conflict (id) do update set name = excluded.name;
 
--- 5. منتجات الديمو (20+ منتج مع أسعار وصور وتفاصيل متكاملة)
+-- 5. منتجات الديمو للسوبر ماركت
 insert into products (
   id, name, barcode, purchase_price, average_purchase_price, sale_price, half_wholesale_price, wholesale_price, discount_price, stock_quantity, display_quantity, category_id, unit, supplier_name, image_url
 ) values
-  -- تصنيف: ساعات
-  ('prod_1',  'ساعة رولكس دايتونا استيل سبورت', '1001', 1800, 1800, 3200, 2900, 2700, 3000, 25, 10, 'cat_watches', 'قطعة', 'شركة الساعات السويسرية', 'https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=500&q=80'),
-  ('prod_2',  'ساعة كاسيو إيديفيس رجالي أسود',  '1002', 700,  700,  1350, 1200, 1100, 1250, 40, 15, 'cat_watches', 'قطعة', 'شركة اليابان للواردات', 'https://images.unsplash.com/photo-1539185441755-769473a23570?w=500&q=80'),
-  ('prod_3',  'ساعة كارتييه سانتوس جلد بني',   '1003', 2100, 2100, 3800, 3400, 3200, 3600, 15, 5,  'cat_watches', 'قطعة', 'مؤسسة الأناقة الخليجية', 'https://images.unsplash.com/photo-1524805444758-089113d48a6d?w=500&q=80'),
-  ('prod_4',  'ساعة أوميغا سيمستر استيل فضي', '1004', 2400, 2400, 4200, 3800, 3500, 3900, 12, 4,  'cat_watches', 'قطعة', 'شركة الساعات السويسرية', 'https://images.unsplash.com/photo-1547996160-81dfa63595aa?w=500&q=80'),
-  ('prod_5',  'ساعة نسائية روزجولد كريستال',  '1005', 450,  450,  950,  850,  800,  890,  30, 12, 'cat_watches', 'قطعة', 'مؤسسة الأناقة الخليجية', 'https://images.unsplash.com/photo-1508685096489-7aacd43bd3b1?w=500&q=80'),
+  -- ألبان ومجمدات
+  ('prod_sm_1',  'جبنة بيضاء فلاحي طازجة',        '6221001', 95,  95,  130, 120, 115, 125, 50,  20, 'cat_dairy',     'كيلو', 'مصنع ألبان الهناء',   'https://images.unsplash.com/photo-1486297678162-eb2a19b0a32d?w=500&q=80'),
+  ('prod_sm_2',  'حليب جهينة كامل الدسم 1 لتر',   '6221002', 34,  34,  42,  39,  38,  40,  100, 40, 'cat_dairy',     'لتر',  'شركة جهينة للأغذية', 'https://images.unsplash.com/photo-1563636619-e9143da7973b?w=500&q=80'),
+  ('prod_sm_3',  'زبادي جهينة طبيعي 105 جرام',    '6221003', 6.5, 6.5, 8.5, 7.8, 7.5, 8,   200, 80, 'cat_dairy',     'علبة', 'شركة جهينة للأغذية', 'https://images.unsplash.com/photo-1571212515416-fef01fc43637?w=500&q=80'),
+  ('prod_sm_4',  'جبنة رومي قديم مبشور',          '6221004', 190, 190, 250, 235, 225, 240, 30,  15, 'cat_dairy',     'كيلو', 'شركة الإخلاص للأجبان','https://images.unsplash.com/photo-1452195100486-9cc805987862?w=500&q=80'),
 
-  -- تصنيف: حقائب وشنط
-  ('prod_6',  'حقيبة يد كوتش جلد طبيعي بيج',   '2001', 950,  950,  1750, 1550, 1450, 1650, 20, 8,  'cat_bags', 'قطعة', 'مصنع الجلود الفاخرة', 'https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=500&q=80'),
-  ('prod_7',  'حقيبة شانيل كروس أسود كلاسيك', '2002', 1200, 1200, 2200, 1950, 1800, 2000, 18, 6,  'cat_bags', 'قطعة', 'مؤسسة الأناقة الخليجية', 'https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=500&q=80'),
-  ('prod_8',  'شنطة ظهر لويس فيتون مونوغرام',  '2003', 1350, 1350, 2400, 2150, 2000, 2250, 15, 5,  'cat_bags', 'قطعة', 'مؤسسة الأناقة الخليجية', 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=500&q=80'),
-  ('prod_9',  'حقيبة يد وسط مايكل كورس جولد',  '2004', 850,  850,  1600, 1400, 1300, 1500, 22, 10, 'cat_bags', 'قطعة', 'مصنع الجلود الفاخرة', 'https://images.unsplash.com/photo-1590874103328-eac38a683ce7?w=500&q=80'),
+  -- بقالة جافة
+  ('prod_sm_5',  'أرز المطبخ ممتاز 1 كجم',        '6222001', 27,  27,  35,  32,  31,  33,  150, 60, 'cat_dry',       'كيلو', 'مضرب المطبخ للأرز',  'https://images.unsplash.com/photo-1586201375761-83865001e31c?w=500&q=80'),
+  ('prod_sm_6',  'زيت عباد الشمس كريستال 800 مل', '6222002', 52,  52,  65,  60,  58,  62,  80,  30, 'cat_dry',       'علبة', 'شركة آرما للزيوت',   'https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?w=500&q=80'),
+  ('prod_sm_7',  'مكرونة حواء قلم 400 جرام',       '6222003', 10.5,10.5,14,  12.5,12,  13.5,200, 90, 'cat_dry',       'باكو', 'شركة المطاحن الحديثة','https://images.unsplash.com/photo-1621996346565-e3def6164286?w=500&q=80'),
+  ('prod_sm_8',  'شاي العروسة ناعم 250 جرام',     '6222004', 44,  44,  55,  50,  48,  52,  120, 50, 'cat_dry',       'باكو', 'شركة الفتح للشاي',   'https://images.unsplash.com/photo-1576092768241-dec231879fc3?w=500&q=80'),
+  ('prod_sm_9',  'سكر كريستال فاخر 1 كجم',        '6222005', 27,  27,  35,  32,  30,  33,  300, 120,'cat_dry',       'كيلو', 'شركة الدلتا للسكر',  'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?w=500&q=80'),
 
-  -- تصنيف: إكسسوارات ومجوهرات
-  ('prod_10', 'إسوارة كارتييه لوف ستيل ذهبي',   '3001', 350,  350,  680,  600,  550,  630,  50, 20, 'cat_accessories', 'قطعة', 'مؤسسة الإكسسوارات الذهبية', 'https://images.unsplash.com/photo-1611591475155-426c116c6736?w=500&q=80'),
-  ('prod_11', 'إسوارة فان كليف 5 وردات أسود', '3002', 320,  320,  620,  550,  500,  580,  45, 18, 'cat_accessories', 'قطعة', 'مؤسسة الإكسسوارات الذهبية', 'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=500&q=80'),
-  ('prod_12', 'عقد لؤلؤ طبيعي كلاسيك أنيق',  '3003', 500,  500,  980,  880,  820,  900,  25, 10, 'cat_accessories', 'قطعة', 'مؤسسة الإكسسوارات الذهبية', 'https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?w=500&q=80'),
-  ('prod_13', 'سلسلة فضة عيار 925 دلاية قلب', '3004', 280,  280,  540,  480,  450,  490,  35, 15, 'cat_accessories', 'قطعة', 'مؤسسة الإكسسوارات الذهبية', 'https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=500&q=80'),
+  -- مشروبات وحلويات
+  ('prod_sm_10', 'عصير جهينة مانجو 1 لتر',        '6223001', 21,  21,  28,  25,  24,  26,  90,  35, 'cat_beverages', 'لتر',  'شركة جهينة للأغذية', 'https://images.unsplash.com/photo-1600271886742-f049cd451bba?w=500&q=80'),
+  ('prod_sm_11', 'بسكويت أوريو الأصلي 6 قطع',     '6223002', 7.5, 7.5, 10,  9,   8.5, 9.5, 250, 100,'cat_beverages', 'باكو', 'شركة مونديليز العالمية','https://images.unsplash.com/photo-1563729784474-d77dbb933a9e?w=500&q=80'),
+  ('prod_sm_12', 'مياه معدنية داساني 1.5 لتر',    '6223003', 6.5, 6.5, 9,   7.8, 7.5, 8.5, 180, 70, 'cat_beverages', 'علبة', 'شركة كوكاكولا مصر',  'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=500&q=80'),
 
-  -- تصنيف: نظارات شمسية
-  ('prod_14', 'نظارة راي بان أفياتور كلاسيك', '4001', 450,  450,  890,  790,  720,  820,  30, 12, 'cat_glasses', 'قطعة', 'شركة النظارات العالمية', 'https://images.unsplash.com/photo-1511499767150-a48a237f0083?w=500&q=80'),
-  ('prod_15', 'نظارة شمسية كارتييه فريم جولد',  '4002', 650,  650,  1250, 1100, 1000, 1150, 20, 8,  'cat_glasses', 'قطعة', 'شركة النظارات العالمية', 'https://images.unsplash.com/photo-1572635196237-14b3f281503f?w=500&q=80'),
+  -- منظفات ورقيات
+  ('prod_sm_13', 'مسحوق أريال أوتوماتيك 2.5 كجم',   '6224001', 155, 155, 195, 180, 172, 185, 40,  15, 'cat_cleaning',  'علبة', 'شركة بروكتر آند جامبل','https://images.unsplash.com/photo-1585421514738-01798e348b17?w=500&q=80'),
+  ('prod_sm_14', 'صابون ديتول الأصلي 125 جرام',    '6224002', 16,  16,  22,  19.5,18.5,20.5,150, 60, 'cat_cleaning',  'قطعة', 'شركة ريكيت بينكيزر', 'https://images.unsplash.com/photo-1600857544200-b2f666a9a2ec?w=500&q=80'),
+  ('prod_sm_15', 'مناديل فاين كلاسيك 500 منديل',   '6224003', 24,  24,  32,  29,  28,  30,  110, 45, 'cat_cleaning',  'علبة', 'مجموعة فاين الصحية', 'https://images.unsplash.com/photo-1584556812952-905ffd0c611a?w=500&q=80'),
 
-  -- تصنيف: محافظ وأحزمة
-  ('prod_16', 'محفظة رجالي جلد طبيعي تومي',    '5001', 200,  200,  390,  350,  320,  360,  50, 25, 'cat_wallets', 'قطعة', 'مصنع الجلود الفاخرة', 'https://images.unsplash.com/photo-1627123424574-724758594e93?w=500&q=80'),
-  ('prod_17', 'حزام رجالي جلد طبيعي اتوماتيك',  '5002', 180,  180,  350,  310,  290,  320,  40, 20, 'cat_wallets', 'قطعة', 'مصنع الجلود الفاخرة', 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=500&q=80'),
+  -- خضار وفواكه
+  ('prod_sm_16', 'طماطم بلدي طازجة',             '6225001', 10,  10,  15,  13,  12,  14,  80,  30, 'cat_produce',   'كيلو', 'مزارع الصالحية',     'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=500&q=80'),
+  ('prod_sm_17', 'بطاطس تحمير فاخرة',             '6225002', 14,  14,  20,  17.5,16.5,18.5,120, 50, 'cat_produce',   'كيلو', 'مزارع البحيرة',      'https://images.unsplash.com/photo-1518977676601-b53f82aba655?w=500&q=80'),
+  ('prod_sm_18', 'تفاح أحمر سكري أمريكي',         '6225003', 48,  48,  65,  58,  55,  60,  60,  25, 'cat_produce',   'كيلو', 'شركة الاستيراد الزراعي','https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?w=500&q=80'),
 
-  -- تصنيف: هدايا VIP
-  ('prod_18', 'علبة هدايا قطيفة فاخرة للساعة', '6001', 50,   50,   120,  100,  90,   110,  100, 40, 'cat_gifts', 'قطعة', 'مؤسسة التغليف والأظرف', 'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?w=500&q=80'),
-  ('prod_19', 'بوكس VIP مجمع (ساعة+سلسلة+محفظة)', '6002', 850,  850,  1590, 1400, 1300, 1490, 25, 10, 'cat_gifts', 'طقم', 'مؤسسة التغليف والأظرف', 'https://images.unsplash.com/photo-1513885535751-8b9238bd345a?w=500&q=80')
+  -- لحوم وأسماك
+  ('prod_sm_19', 'لحم بلدي كابوريا/كندوز',        '6226001', 310, 310, 380, 355, 345, 365, 40,  20, 'cat_meat',      'كيلو', 'جزارة البركة العصرية','https://images.unsplash.com/photo-1607623814075-e51df1bdc82f?w=500&q=80'),
+  ('prod_sm_20', 'دجاج كوكي مجمد 1.1 كجم',       '6226002', 115, 115, 145, 134, 128, 138, 50,  20, 'cat_meat',      'قطعة', 'شركة أطياب للأغذية', 'https://images.unsplash.com/photo-1587593810167-a84920ea0781?w=500&q=80')
 on conflict (id) do update set
   name = excluded.name,
   sale_price = excluded.sale_price,
   purchase_price = excluded.purchase_price,
   stock_quantity = excluded.stock_quantity,
   display_quantity = excluded.display_quantity,
+  category_id = excluded.category_id,
+  unit = excluded.unit,
   image_url = excluded.image_url;
 
 -- 6. العملاء
