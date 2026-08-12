@@ -113,7 +113,30 @@ export const PRODUCT_COLUMNS_FIX_SQL = 'db/74_product_image.sql';
  * بنشيلها قبل الحفظ عشان ماتضيّعش رحلة كاملة للسيرفر في كل مرة (كل محاولة
  * فاشلة بترجّع عمود ناقص واحد بس، فالحفظ كان بياخد رحلة زيادة على الفاضي).
  */
-const PRODUCT_UI_ONLY_FIELDS = ['discount_percent'];
+const PRODUCT_UI_ONLY_FIELDS = [
+  'discount_percent',
+  'season',
+  'color',
+  'colors',
+  'sizes',
+  'alert_threshold',
+  'amazon_price',
+  'amazon_discount_price',
+  'amazon_commission',
+  'amazon_shipping',
+  'amazon_ad_cost',
+  'jumia_price',
+  'jumia_discount_price',
+  'jumia_commission',
+  'jumia_shipping',
+  'jumia_ad_cost',
+  'noon_price',
+  'noon_discount_price',
+  'noon_commission',
+  'noon_shipping',
+  'noon_ad_cost',
+  'website_ad_cost',
+];
 
 /** بيرجّع اسم العمود الناقص من رسالة خطأ PostgREST/Postgres، أو null. */
 function missingProductColumn(error: { message?: string } | null): string | null {
