@@ -206,7 +206,7 @@ export default function Inventory() {
   const [intakeCost, setIntakeCost] = useState('');
   const [intakeNote, setIntakeNote] = useState('');
 
-  const statsFilterActive = selectedCategory !== 'all' || seasonFilter !== 'all';
+  const statsFilterActive = selectedCategory !== 'all';
   const statsBaseIds = useMemo(() => new Set(statsBase.map(p => p.id)), [statsBase]);
   // مع فلتر تصنيف/موسم نعرض قيود منتجات الفلتر فقط؛ من غير فلتر نعرض السجل كامل
   // (بما فيه قيود منتجات اتحذفت — قيمتها اتصرفت فعلاً ولازم تفضل محسوبة).
