@@ -1,6 +1,7 @@
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { useStore, PRODUCT_LABEL_AR, PRODUCT_COLUMNS_FIX_SQL, type Product } from '../../store/useStore';
-import { Plus, Edit2, EyeOff, Eye, Search, X, Tag, FileText, Table as TableIcon, Box, AlertTriangle, TrendingUp, ScanLine, CheckCircle2, Printer, Upload, Download, ArrowLeftRight, Layers, Trash2, Image as ImageIcon } from 'lucide-react';
+import { Plus, Edit2, EyeOff, Eye, Search, X, Tag, FileText, Table as TableIcon, Box, AlertTriangle, TrendingUp, ScanLine, CheckCircle2, Printer, Upload, Download, ArrowLeftRight, Layers, Trash2, Image as ImageIcon, Camera } from 'lucide-react';
+import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { normalizeArabic, formatImageUrl } from '../../utils/textUtils';
 import { splitStockValueBySource, totalIntakeValue, intakeSourceLabel } from '../../utils/stockIntake';
 import { UNIT_OPTIONS, getUnitConfig, isFractionalUnit, formatQty } from '../../utils/units';
@@ -80,8 +81,63 @@ export default function Inventory() {
   const [selectedCategory, setSelectedCategory] = useState('all');
   
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showBarcodeCameraModal, setShowBarcodeCameraModal] = useState(false);
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
   const [scanSuccess, setScanSuccess] = useState(false);
+
+  useEffect(() => {
+    if (!showBarcodeCameraModal) return;
+    let scanner: Html5Qrcode | null = null;
+    let isStopped = false;
+
+    const startScanner = async () => {
+      try {
+        scanner = new Html5Qrcode('modal-barcode-reader', {
+          formatsToSupport: [
+            Html5QrcodeSupportedFormats.EAN_13,
+            Html5QrcodeSupportedFormats.EAN_8,
+            Html5QrcodeSupportedFormats.UPC_A,
+            Html5QrcodeSupportedFormats.UPC_E,
+            Html5QrcodeSupportedFormats.CODE_128,
+            Html5QrcodeSupportedFormats.CODE_39,
+            Html5QrcodeSupportedFormats.ITF,
+            Html5QrcodeSupportedFormats.QR_CODE,
+          ],
+          verbose: false,
+        });
+
+        await scanner.start(
+          { facingMode: 'environment' },
+          { fps: 15, qrbox: { width: 250, height: 180 } },
+          (decodedText) => {
+            if (isStopped) return;
+            isStopped = true;
+            setFormData(prev => ({ ...prev, barcode: decodedText }));
+            setScanSuccess(true);
+            try { navigator.vibrate?.(100); } catch (_) {}
+            playSuccessSound();
+            if (scanner && scanner.isScanning) {
+              scanner.stop().then(() => scanner?.clear()).catch(console.warn);
+            }
+            setShowBarcodeCameraModal(false);
+            setTimeout(() => setScanSuccess(false), 2000);
+          },
+          () => {}
+        );
+      } catch (err) {
+        console.warn('Camera barcode scanner error:', err);
+      }
+    };
+
+    startScanner();
+
+    return () => {
+      isStopped = true;
+      if (scanner && scanner.isScanning) {
+        scanner.stop().then(() => scanner?.clear()).catch(console.warn);
+      }
+    };
+  }, [showBarcodeCameraModal]);
 
   const playSuccessSound = () => {
     try {
@@ -943,24 +999,34 @@ export default function Inventory() {
                   />
                 </div>
 
-                {/* Product Barcode line + Generate Button */}
+                {/* Product Barcode line + Generate & Camera Buttons */}
                 <div className="relative">
                   <div className="flex justify-between items-center mb-1.5">
                     <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1">
                       <ScanLine size={14} className="text-emerald-500 dark:text-emerald-400" />
-                      🔢 باركود المنتج <span className="text-[10px] text-slate-400 dark:text-slate-500">(يتولّد تلقائياً تسلسلياً لو فاضي)</span>
+                      🔢 باركود المنتج <span className="text-[10px] text-slate-400 dark:text-slate-500">(يتولّد تلقائياً لو فاضي)</span>
                     </label>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const existing = new Set(products.map(p => p.barcode).filter(Boolean) as string[]);
-                        const gen = generateBarcode(existing);
-                        setFormData(prev => ({ ...prev, barcode: gen }));
-                      }}
-                      className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black px-3 py-1.5 rounded-xl transition flex items-center gap-1 shadow-sm"
-                    >
-                      ⚡ توليد
-                    </button>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setShowBarcodeCameraModal(true)}
+                        className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-black px-3 py-1.5 rounded-xl transition flex items-center gap-1 shadow-sm cursor-pointer"
+                        title="مسح الباركود باستخدام كاميرا الجهاز"
+                      >
+                        <Camera size={14} /> 📷 كاميرا
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const existing = new Set(products.map(p => p.barcode).filter(Boolean) as string[]);
+                          const gen = generateBarcode(existing);
+                          setFormData(prev => ({ ...prev, barcode: gen }));
+                        }}
+                        className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black px-3 py-1.5 rounded-xl transition flex items-center gap-1 shadow-sm cursor-pointer"
+                      >
+                        ⚡ توليد
+                      </button>
+                    </div>
                   </div>
                   <div className="relative">
                     <input
@@ -969,7 +1035,7 @@ export default function Inventory() {
                       value={formData.barcode}
                       onChange={e => setFormData({ ...formData, barcode: e.target.value })}
                       onKeyDown={handleBarcodeKeyDown}
-                      placeholder="امسح الباركود أو انقر على توليد..."
+                      placeholder="امسح الباركود بالكاميرا أو الجهاز أو انقر توليد..."
                       className={`w-full bg-slate-50 dark:bg-slate-950 border text-slate-900 dark:text-white py-3 px-4 rounded-2xl focus:ring-2 focus:ring-emerald-500 focus:outline-none font-mono font-bold text-sm text-left transition ${scanSuccess ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/40' : 'border-slate-200 dark:border-slate-700/80'}`}
                     />
                     {scanSuccess && (
@@ -978,68 +1044,6 @@ export default function Inventory() {
                   </div>
                 </div>
 
-                {/* Colors & Codes Repeater Section */}
-                <div className="bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-black text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                      🎨 الألوان والأكواد
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const updated = Array.isArray(formData.colors) ? [...formData.colors] : [];
-                        updated.push({ name: '', code: '' });
-                        setFormData({ ...formData, colors: updated });
-                      }}
-                      className="bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-200 dark:hover:bg-emerald-500/30 border border-emerald-300 dark:border-emerald-500/40 text-xs font-bold px-3 py-1.5 rounded-xl transition flex items-center gap-1"
-                    >
-                      + إضافة لون
-                    </button>
-                  </div>
-
-                  {(!formData.colors || formData.colors.length === 0) ? (
-                    <p className="text-center text-xs text-slate-400 dark:text-slate-500 py-1">اضغط على "+ إضافة لون" لربط أكواد الألوان بالمنتج</p>
-                  ) : (
-                    formData.colors.map((c: any, idx: number) => (
-                      <div key={idx} className="flex gap-2 items-center">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const updated = formData.colors.filter((_: any, i: number) => i !== idx);
-                            setFormData({ ...formData, colors: updated });
-                          }}
-                          className="p-2.5 rounded-xl bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-500/30 hover:bg-red-200 transition shrink-0"
-                          title="حذف اللون"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                        <input
-                          type="text"
-                          placeholder="اسم اللون (مثل: أسود)"
-                          value={c.name}
-                          onChange={e => {
-                            const updated = [...formData.colors];
-                            updated[idx].name = e.target.value;
-                            setFormData({ ...formData, colors: updated });
-                          }}
-                          className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700/80 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 dark:text-white flex-1"
-                        />
-                        <input
-                          type="text"
-                          dir="ltr"
-                          placeholder="كود اللون..."
-                          value={c.code}
-                          onChange={e => {
-                            const updated = [...formData.colors];
-                            updated[idx].code = e.target.value;
-                            setFormData({ ...formData, colors: updated });
-                          }}
-                          className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700/80 rounded-xl px-3 py-2 text-xs font-mono font-bold text-slate-800 dark:text-white text-left flex-1"
-                        />
-                      </div>
-                    ))
-                  )}
-                </div>
 
                 {/* Collection / Category Dropdown */}
                 <div>
@@ -1347,327 +1351,7 @@ export default function Inventory() {
 
               </div>
 
-              {/* 3. Noon Store Section (Light Blue Box) */}
-              <div className="bg-sky-50/70 dark:bg-sky-950/20 border border-sky-200 dark:border-sky-500/50 rounded-2xl p-4 space-y-3">
-                <div className="text-xs font-black text-sky-800 dark:text-sky-300 flex items-center gap-1.5">
-                  🏪 متجر نون (Noon)
-                </div>
-                <div className="grid grid-cols-2 gap-2.5">
-                  <div>
-                    <label className="block text-[11px] font-bold text-sky-800 dark:text-sky-200/80 mb-1">🛍️ سعر نون [جنيه]</label>
-                    <input
-                      type="number" min="0" step="0.01"
-                      value={formData.noon_price || ''}
-                      onChange={e => setFormData({ ...formData, noon_price: parseFloat(e.target.value) || 0 })}
-                      className="w-full bg-white dark:bg-slate-950 border border-sky-300 dark:border-sky-500/30 text-slate-900 dark:text-white py-2 px-3 rounded-xl text-center text-xs font-bold"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-bold text-sky-800 dark:text-sky-200/80 mb-1">📊 عمولة نون (%)</label>
-                    <input
-                      type="number" min="0" step="0.1"
-                      value={formData.noon_commission || ''}
-                      onChange={e => setFormData({ ...formData, noon_commission: parseFloat(e.target.value) || 0 })}
-                      className="w-full bg-white dark:bg-slate-950 border border-sky-300 dark:border-sky-500/30 text-slate-900 dark:text-white py-2 px-3 rounded-xl text-center text-xs font-bold"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-bold text-sky-800 dark:text-sky-200/80 mb-1">🏷️ سعر خصم نون [جنيه]</label>
-                    <input
-                      type="number" min="0" step="0.01"
-                      value={formData.noon_discount_price || ''}
-                      onChange={e => setFormData({ ...formData, noon_discount_price: parseFloat(e.target.value) || 0 })}
-                      className="w-full bg-white dark:bg-slate-950 border border-sky-300 dark:border-sky-500/30 text-slate-900 dark:text-white py-2 px-3 rounded-xl text-center text-xs font-bold"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-bold text-sky-800 dark:text-sky-200/80 mb-1">🚚 شحن نون [جنيه]</label>
-                    <input
-                      type="number" min="0" step="0.01"
-                      value={formData.noon_shipping || ''}
-                      onChange={e => setFormData({ ...formData, noon_shipping: parseFloat(e.target.value) || 0 })}
-                      className="w-full bg-white dark:bg-slate-950 border border-sky-300 dark:border-sky-500/30 text-slate-900 dark:text-white py-2 px-3 rounded-xl text-center text-xs font-bold"
-                    />
-                  </div>
-                </div>
 
-                {/* Noon Summary Card */}
-                {(() => {
-                  const noonP = formData.noon_discount_price && formData.noon_discount_price > 0 ? formData.noon_discount_price : formData.noon_price || 0;
-                  const noonVat = noonP * 0.14;
-                  const noonComm = noonP * ((formData.noon_commission || 0) / 100);
-                  const noonShip = formData.noon_shipping || 0;
-                  const noonAd = formData.noon_ad_cost || 0;
-                  const noonTotalCost = (formData.purchase_price || 0) * 1.14;
-                  const noonNet = noonP - noonTotalCost - noonComm - noonShip - noonAd;
-                  return (
-                    <div className="bg-sky-100/60 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-500/40 rounded-xl p-3 text-xs space-y-1.5 text-sky-900 dark:text-sky-200">
-                      <div className="text-center pb-1 border-b border-sky-200 dark:border-sky-500/30">
-                        <span className="text-[11px] font-bold text-sky-800 dark:text-sky-300">💵 صافي مكسب نون</span>
-                        <div className={`text-xl font-black ${noonNet >= 0 ? 'text-sky-700 dark:text-sky-300' : 'text-red-600 dark:text-red-400'}`}>
-                          {noonNet.toFixed(2)} جنيه
-                        </div>
-                      </div>
-                      <div className="flex justify-between"><span>🏷️ سعر نون:</span><span className="font-bold">{noonP.toFixed(2)} جنيه</span></div>
-                      <div className="flex justify-between text-sky-800/80 dark:text-sky-300/70"><span>🛍️ ضريبة 14%:</span><span className="font-bold">{noonVat.toFixed(2)} جنيه</span></div>
-                      <div className="flex justify-between text-sky-800/80 dark:text-sky-300/70"><span>⚖️ الإجمالي بعد الضريبة:</span><span className="font-bold">{(noonP + noonVat).toFixed(2)} جنيه</span></div>
-                      <div className="flex justify-between text-sky-800/80 dark:text-sky-300/70"><span>⛔ العمولة:</span><span className="font-bold">{noonComm.toFixed(2)} جنيه</span></div>
-                      <div className="flex justify-between text-sky-800/80 dark:text-sky-300/70"><span>🚚 الشحن:</span><span className="font-bold">{noonShip.toFixed(2)} جنيه</span></div>
-                    </div>
-                  );
-                })()}
-              </div>
-
-              {/* 4. Jumia Store Section (Orange/Red Box) */}
-              <div className="bg-amber-50/70 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-500/50 rounded-2xl p-4 space-y-3">
-                <div className="text-xs font-black text-amber-800 dark:text-amber-300 flex items-center gap-1.5">
-                  🏪 متجر جوميا (Jumia)
-                </div>
-                <div className="grid grid-cols-2 gap-2.5">
-                  <div>
-                    <label className="block text-[11px] font-bold text-amber-800 dark:text-amber-200/80 mb-1">🛍️ سعر جوميا [جنيه]</label>
-                    <input
-                      type="number" min="0" step="0.01"
-                      value={formData.jumia_price || ''}
-                      onChange={e => setFormData({ ...formData, jumia_price: parseFloat(e.target.value) || 0 })}
-                      className="w-full bg-white dark:bg-slate-950 border border-amber-300 dark:border-amber-500/30 text-slate-900 dark:text-white py-2 px-3 rounded-xl text-center text-xs font-bold"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-bold text-amber-800 dark:text-amber-200/80 mb-1">📊 عمولة جوميا (%)</label>
-                    <input
-                      type="number" min="0" step="0.1"
-                      value={formData.jumia_commission || ''}
-                      onChange={e => setFormData({ ...formData, jumia_commission: parseFloat(e.target.value) || 0 })}
-                      className="w-full bg-white dark:bg-slate-950 border border-amber-300 dark:border-amber-500/30 text-slate-900 dark:text-white py-2 px-3 rounded-xl text-center text-xs font-bold"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-bold text-amber-800 dark:text-amber-200/80 mb-1">🏷️ سعر خصم جوميا [جنيه]</label>
-                    <input
-                      type="number" min="0" step="0.01"
-                      value={formData.jumia_discount_price || ''}
-                      onChange={e => setFormData({ ...formData, jumia_discount_price: parseFloat(e.target.value) || 0 })}
-                      className="w-full bg-white dark:bg-slate-950 border border-amber-300 dark:border-amber-500/30 text-slate-900 dark:text-white py-2 px-3 rounded-xl text-center text-xs font-bold"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-bold text-amber-800 dark:text-amber-200/80 mb-1">🚚 شحن جوميا [جنيه]</label>
-                    <input
-                      type="number" min="0" step="0.01"
-                      value={formData.jumia_shipping || ''}
-                      onChange={e => setFormData({ ...formData, jumia_shipping: parseFloat(e.target.value) || 0 })}
-                      className="w-full bg-white dark:bg-slate-950 border border-amber-300 dark:border-amber-500/30 text-slate-900 dark:text-white py-2 px-3 rounded-xl text-center text-xs font-bold"
-                    />
-                  </div>
-                </div>
-
-                {/* Noon Summary Card */}
-                {(() => {
-                  const jumP = formData.jumia_discount_price && formData.jumia_discount_price > 0 ? formData.jumia_discount_price : formData.jumia_price || 0;
-                  const jumVat = jumP * 0.14;
-                  const jumComm = jumP * ((formData.jumia_commission || 0) / 100);
-                  const jumShip = formData.jumia_shipping || 0;
-                  const jumAd = formData.jumia_ad_cost || 0;
-                  const jumTotalCost = (formData.purchase_price || 0) * 1.14;
-                  const jumNet = jumP - jumTotalCost - jumComm - jumShip - jumAd;
-                  return (
-                    <div className="bg-amber-100/60 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-500/40 rounded-xl p-3 text-xs space-y-1.5 text-amber-900 dark:text-amber-200">
-                      <div className="text-center pb-1 border-b border-amber-200 dark:border-amber-500/30">
-                        <span className="text-[11px] font-bold text-amber-800 dark:text-amber-300">💵 صافي مكسب جوميا</span>
-                        <div className={`text-xl font-black ${jumNet >= 0 ? 'text-amber-700 dark:text-amber-300' : 'text-red-600 dark:text-red-400'}`}>
-                          {jumNet.toFixed(2)} جنيه
-                        </div>
-                      </div>
-                      <div className="flex justify-between"><span>🏷️ سعر جوميا:</span><span className="font-bold">{jumP.toFixed(2)} جنيه</span></div>
-                      <div className="flex justify-between text-amber-800/80 dark:text-amber-300/70"><span>🛍️ ضريبة 14%:</span><span className="font-bold">{jumVat.toFixed(2)} جنيه</span></div>
-                      <div className="flex justify-between text-amber-800/80 dark:text-amber-300/70"><span>⚖️ الإجمالي بعد الضريبة:</span><span className="font-bold">{(jumP + jumVat).toFixed(2)} جنيه</span></div>
-                      <div className="flex justify-between text-amber-800/80 dark:text-amber-300/70"><span>⛔ العمولة:</span><span className="font-bold">{jumComm.toFixed(2)} جنيه</span></div>
-                      <div className="flex justify-between text-amber-800/80 dark:text-amber-300/70"><span>🚚 الشحن:</span><span className="font-bold">{jumShip.toFixed(2)} جنيه</span></div>
-                    </div>
-                  );
-                })()}
-              </div>
-
-              
-{/* 4.5. Amazon Store Section (Yellow/Orange Box) */}
-              <div className="bg-orange-50/70 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-500/50 rounded-2xl p-4 space-y-3">
-                <div className="text-xs font-black text-orange-800 dark:text-orange-300 flex items-center gap-1.5">
-                  🏪 متجر أمازون (Amazon)
-                </div>
-                <div className="grid grid-cols-2 gap-2.5">
-                  <div>
-                    <label className="block text-[11px] font-bold text-orange-800 dark:text-orange-200/80 mb-1">🛍️ سعر أمازون [جنيه]</label>
-                    <input
-                      type="number" min="0" step="0.01"
-                      value={formData.amazon_price || ''}
-                      onChange={e => setFormData({ ...formData, amazon_price: parseFloat(e.target.value) || 0 })}
-                      className="w-full bg-white dark:bg-slate-950 border border-orange-300 dark:border-orange-500/30 text-slate-900 dark:text-white py-2 px-3 rounded-xl text-center text-xs font-bold"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-bold text-orange-800 dark:text-orange-200/80 mb-1">📊 عمولة أمازون (%)</label>
-                    <input
-                      type="number" min="0" step="0.1"
-                      value={formData.amazon_commission || ''}
-                      onChange={e => setFormData({ ...formData, amazon_commission: parseFloat(e.target.value) || 0 })}
-                      className="w-full bg-white dark:bg-slate-950 border border-orange-300 dark:border-orange-500/30 text-slate-900 dark:text-white py-2 px-3 rounded-xl text-center text-xs font-bold"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-bold text-orange-800 dark:text-orange-200/80 mb-1">🏷️ سعر خصم أمازون [جنيه]</label>
-                    <input
-                      type="number" min="0" step="0.01"
-                      value={formData.amazon_discount_price || ''}
-                      onChange={e => setFormData({ ...formData, amazon_discount_price: parseFloat(e.target.value) || 0 })}
-                      className="w-full bg-white dark:bg-slate-950 border border-orange-300 dark:border-orange-500/30 text-slate-900 dark:text-white py-2 px-3 rounded-xl text-center text-xs font-bold"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-bold text-orange-800 dark:text-orange-200/80 mb-1">🚚 شحن أمازون [جنيه]</label>
-                    <input
-                      type="number" min="0" step="0.01"
-                      value={formData.amazon_shipping || ''}
-                      onChange={e => setFormData({ ...formData, amazon_shipping: parseFloat(e.target.value) || 0 })}
-                      className="w-full bg-white dark:bg-slate-950 border border-orange-300 dark:border-orange-500/30 text-slate-900 dark:text-white py-2 px-3 rounded-xl text-center text-xs font-bold"
-                    />
-                  </div>
-                </div>
-
-                {/* Noon Summary Card */}
-                {(() => {
-                  const amzP = formData.amazon_discount_price && formData.amazon_discount_price > 0 ? formData.amazon_discount_price : formData.amazon_price || 0;
-                  const amzVat = amzP * 0.14;
-                  const amzComm = amzP * ((formData.amazon_commission || 0) / 100);
-                  const amzShip = formData.amazon_shipping || 0;
-                  const amzAd = formData.amazon_ad_cost || 0;
-                  const amzTotalCost = (formData.purchase_price || 0) * 1.14;
-                  const amzNet = amzP - amzTotalCost - amzComm - amzShip - amzAd;
-                  return (
-                    <div className="bg-orange-100/60 dark:bg-orange-950/40 border border-orange-200 dark:border-orange-500/40 rounded-xl p-3 text-xs space-y-1.5 text-orange-900 dark:text-orange-200">
-                      <div className="text-center pb-1 border-b border-orange-200 dark:border-orange-500/30">
-                        <span className="text-[11px] font-bold text-orange-800 dark:text-orange-300">💵 صافي مكسب أمازون</span>
-                        <div className={`text-xl font-black ${amzNet >= 0 ? 'text-orange-700 dark:text-orange-300' : 'text-red-600 dark:text-red-400'}`}>
-                          {amzNet.toFixed(2)} جنيه
-                        </div>
-                      </div>
-                      <div className="flex justify-between"><span>🏷️ سعر أمازون:</span><span className="font-bold">{amzP.toFixed(2)} جنيه</span></div>
-                      <div className="flex justify-between text-orange-800/80 dark:text-orange-300/70"><span>🛍️ ضريبة 14%:</span><span className="font-bold">{amzVat.toFixed(2)} جنيه</span></div>
-                      <div className="flex justify-between text-orange-800/80 dark:text-orange-300/70"><span>⚖️ الإجمالي بعد الضريبة:</span><span className="font-bold">{(amzP + amzVat).toFixed(2)} جنيه</span></div>
-                      <div className="flex justify-between text-orange-800/80 dark:text-orange-300/70"><span>⛔ العمولة:</span><span className="font-bold">{amzComm.toFixed(2)} جنيه</span></div>
-                      <div className="flex justify-between text-orange-800/80 dark:text-orange-300/70"><span>🚚 الشحن:</span><span className="font-bold">{amzShip.toFixed(2)} جنيه</span></div>
-                    </div>
-                  );
-                })()}
-              </div>
-
-              
-              {/* 5. Platforms Net Profit Summary Card Grid (`🛒 أسعار المنصات والخصومات`) */}
-              {(() => {
-                const sale = formData.sale_price || 0;
-                const pct = formData.discount_percent || 0;
-                const netSale = sale - (sale * (pct / 100));
-                const totalCost = (formData.purchase_price || 0) * 1.14;
-                const webProfit = netSale - totalCost - (formData.website_ad_cost || 0);
-
-                const noonP = formData.noon_discount_price && formData.noon_discount_price > 0 ? formData.noon_discount_price : formData.noon_price || 0;
-                const noonComm = noonP * ((formData.noon_commission || 0) / 100);
-                const noonNet = noonP > 0 ? (noonP - totalCost - noonComm - (formData.noon_shipping || 0) - (formData.noon_ad_cost || 0)) : 0;
-
-                const jumP = formData.jumia_discount_price && formData.jumia_discount_price > 0 ? formData.jumia_discount_price : formData.jumia_price || 0;
-                const jumComm = jumP * ((formData.jumia_commission || 0) / 100);
-                const jumNet = jumP > 0 ? (jumP - totalCost - jumComm - (formData.jumia_shipping || 0) - (formData.jumia_ad_cost || 0)) : 0;
-                const amzP = formData.amazon_discount_price && formData.amazon_discount_price > 0 ? formData.amazon_discount_price : formData.amazon_price || 0;
-                const amzComm = amzP * ((formData.amazon_commission || 0) / 100);
-                const amzNet = amzP > 0 ? (amzP - totalCost - amzComm - (formData.amazon_shipping || 0) - (formData.amazon_ad_cost || 0)) : 0;
-
-                return (
-                  <div className="bg-sky-50/60 dark:bg-sky-950/20 border border-sky-200 dark:border-sky-500/40 rounded-2xl p-3.5 space-y-2">
-                    <div className="text-xs font-black text-sky-800 dark:text-sky-300 flex items-center gap-1.5">
-                      🛒 أسعار المنصات والخصومات
-                    </div>
-                    <div className="grid grid-cols-4 gap-2 text-center text-xs">
-                      <div className="bg-white dark:bg-slate-950 p-2 rounded-xl border border-slate-200 dark:border-slate-800">
-                        <span className="text-[10px] text-slate-500 dark:text-slate-400 block">💬 الموقع</span>
-                        <span className={`font-black ${webProfit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>{webProfit.toFixed(2)}</span>
-                      </div>
-                      <div className="bg-white dark:bg-slate-950 p-2 rounded-xl border border-slate-200 dark:border-slate-800">
-                        <span className="text-[10px] text-slate-500 dark:text-slate-400 block">📦 نون</span>
-                        <span className={`font-black ${noonNet >= 0 ? 'text-sky-600 dark:text-sky-400' : 'text-red-600 dark:text-red-400'}`}>{noonNet.toFixed(2)}</span>
-                      </div>
-                      <div className="bg-white dark:bg-slate-950 p-2 rounded-xl border border-slate-200 dark:border-slate-800">
-                        <span className="text-[10px] text-slate-500 dark:text-slate-400 block">🛍️ جوميا</span>
-                        <span className={`font-black ${jumNet >= 0 ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'}`}>{jumNet.toFixed(2)}</span>
-                      </div>
-                      <div className="bg-white dark:bg-slate-950 p-2 rounded-xl border border-slate-200 dark:border-slate-800">
-                        <span className="text-[10px] text-slate-500 dark:text-slate-400 block">📦 أمازون</span>
-                        <span className={`font-black ${amzNet >= 0 ? 'text-orange-600 dark:text-orange-400' : 'text-red-600 dark:text-red-400'}`}>{amzNet.toFixed(2)}</span>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })()}
-
-              {/* 6. Ads Expenses Section (Pink Box `📢 مصاريف الإعلانات`) */}
-              <div className="bg-pink-50/70 dark:bg-pink-950/20 border border-pink-200 dark:border-pink-500/40 rounded-2xl p-4 space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-xs font-black text-pink-800 dark:text-pink-300 flex items-center gap-1.5">
-                    📢 مصاريف الإعلانات
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setFormData(prev => ({
-                        ...prev,
-                        website_ad_cost: 0,
-                        jumia_ad_cost: 0,
-                        noon_ad_cost: 0,
-                      }));
-                    }}
-                    className="bg-pink-100 dark:bg-pink-500/20 text-pink-700 dark:text-pink-300 hover:bg-pink-200 dark:hover:bg-pink-500/30 text-[11px] font-bold px-3 py-1 rounded-xl transition border border-pink-300 dark:border-pink-500/30 flex items-center gap-1"
-                  >
-                    🔄 إعادة تعيين الإعلانات
-                  </button>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5">
-                  <div>
-                    <label className="block text-[11px] font-bold text-pink-800 dark:text-pink-200/80 mb-1">إعلانات الموقع (جنيه)</label>
-                    <input
-                      type="number" min="0" step="0.01"
-                      value={formData.website_ad_cost || ''}
-                      onChange={e => setFormData({ ...formData, website_ad_cost: parseFloat(e.target.value) || 0 })}
-                      className="w-full bg-white dark:bg-slate-950 border border-pink-300 dark:border-pink-500/30 text-slate-900 dark:text-white py-2 px-3 rounded-xl text-center text-xs font-bold"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-bold text-pink-800 dark:text-pink-200/80 mb-1">إعلانات جوميا (جنيه)</label>
-                    <input
-                      type="number" min="0" step="0.01"
-                      value={formData.jumia_ad_cost || ''}
-                      onChange={e => setFormData({ ...formData, jumia_ad_cost: parseFloat(e.target.value) || 0 })}
-                      className="w-full bg-white dark:bg-slate-950 border border-pink-300 dark:border-pink-500/30 text-slate-900 dark:text-white py-2 px-3 rounded-xl text-center text-xs font-bold"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-bold text-pink-800 dark:text-pink-200/80 mb-1">إعلانات نون (جنيه)</label>
-                    <input
-                      type="number" min="0" step="0.01"
-                      value={formData.noon_ad_cost || ''}
-                      onChange={e => setFormData({ ...formData, noon_ad_cost: parseFloat(e.target.value) || 0 })}
-                      className="w-full bg-white dark:bg-slate-950 border border-pink-300 dark:border-pink-500/30 text-slate-900 dark:text-white py-2 px-3 rounded-xl text-center text-xs font-bold"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-bold text-pink-800 dark:text-pink-200/80 mb-1">إعلانات أمازون (جنيه)</label>
-                    <input
-                      type="number" min="0" step="0.01"
-                      value={formData.amazon_ad_cost || ''}
-                      onChange={e => setFormData({ ...formData, amazon_ad_cost: parseFloat(e.target.value) || 0 })}
-                      className="w-full bg-white dark:bg-slate-950 border border-pink-300 dark:border-pink-500/30 text-slate-900 dark:text-white py-2 px-3 rounded-xl text-center text-xs font-bold"
-                    />
-                  </div>
-                </div>
-              </div>
 
               {/* 7. Action Footer Buttons */}
               <div className="pt-3 flex gap-3">
@@ -1687,6 +1371,42 @@ export default function Inventory() {
               </div>
 
             </form>
+          </div>
+        </div>
+      )}
+      {/* CAMERA BARCODE SCANNER MODAL FOR PRODUCT ADD/EDIT */}
+      {showBarcodeCameraModal && (
+        <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-slate-900 text-white rounded-3xl shadow-2xl w-full max-w-md border border-slate-800 overflow-hidden flex flex-col p-6 space-y-4">
+            <div className="flex justify-between items-center border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2 text-base font-bold text-emerald-400">
+                <Camera size={20} />
+                مسح الباركود بالكاميرا
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowBarcodeCameraModal(false)}
+                className="text-slate-400 hover:text-white bg-slate-800 p-2 rounded-xl transition"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-300 text-center font-bold">
+              وجه كاميرا الجهاز نحو الباركود الموجود على المنتج للالتقاط التلقائي
+            </p>
+
+            <div className="relative w-full h-64 bg-black rounded-2xl overflow-hidden border border-slate-700 flex items-center justify-center">
+              <div id="modal-barcode-reader" className="w-full h-full" />
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowBarcodeCameraModal(false)}
+              className="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold py-3 rounded-xl text-sm transition"
+            >
+              إلغاء
+            </button>
           </div>
         </div>
       )}
@@ -2047,20 +1767,20 @@ export default function Inventory() {
       </div>
 
       <div id="inventory-table" className="bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden flex flex-col min-h-[500px]">
-        <div className="p-4 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 flex items-center justify-between gap-3 flex-wrap">
-          <div className="relative w-full md:w-1/3 md:min-w-[300px]">
+        <div className="p-4 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+          <div className="relative w-full sm:w-1/2 md:w-1/3">
             <Search className="absolute right-4 top-3 text-slate-400" size={20} />
-              <input
-                type="text"
-                placeholder="ابحث باسم المنتج أو الباركود..."
-                style={{ '--tw-ring-color': storeSettings.themeColor + '40' } as any}
-                className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white rounded-xl py-2.5 pr-12 pl-4 text-sm focus:outline-none focus:ring-2 shadow-sm"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
+            <input
+              type="text"
+              placeholder="ابحث باسم المنتج أو الباركود..."
+              style={{ '--tw-ring-color': storeSettings.themeColor + '40' } as any}
+              className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white rounded-xl py-2.5 pr-12 pl-4 text-sm focus:outline-none focus:ring-2 shadow-sm"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
           </div>
-          <div className="flex items-center gap-3">
-            <div className="relative">
+          <div className="flex items-center gap-2 overflow-x-auto whitespace-nowrap max-w-full pb-1 sm:pb-0">
+            <div className="relative shrink-0">
               <Tag className="absolute right-3 top-2.5 text-slate-400 pointer-events-none" size={18} />
               <select
                 value={selectedCategory}
@@ -2077,7 +1797,7 @@ export default function Inventory() {
             {hiddenCount > 0 && (
               <button
                 onClick={() => setShowHidden(!showHidden)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm border transition ${
+                className={`flex items-center gap-2 px-3 py-2.5 rounded-xl font-bold text-xs sm:text-sm border transition shrink-0 ${
                   showHidden
                     ? 'bg-slate-800 text-white border-slate-800'
                     : 'bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-slate-400'
@@ -2087,7 +1807,7 @@ export default function Inventory() {
                 {showHidden ? 'إخفاء المخفيين' : `إظهار المخفيين (${hiddenCount})`}
               </button>
             )}
-            <div className="text-sm text-slate-500 dark:text-slate-300 font-bold bg-white dark:bg-slate-900 px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-xl">
+            <div className="text-xs sm:text-sm text-slate-500 dark:text-slate-300 font-bold bg-white dark:bg-slate-900 px-3 py-2.5 border border-slate-200 dark:border-slate-700 rounded-xl shrink-0">
               إجمالي المنتجات: {products.length}
             </div>
           </div>
