@@ -187,15 +187,13 @@ export default function Inventory() {
     const matchesStock = showLowStock ? qtyOf(p) < 5 : true;
     const matchesHidden = showHidden ? p.is_hidden === true : !p.is_hidden; // showHidden=true → المخفيين فقط
     const matchesCategory = selectedCategory === 'all' || p.category_id === selectedCategory;
-    const matchesSeason = seasonFilter === 'all' || p.season === seasonFilter;
-    return matchesSearch && matchesStock && matchesHidden && matchesCategory && matchesSeason;
+    return matchesSearch && matchesStock && matchesHidden && matchesCategory;
   }).sort((a, b) => new Date((b as any).created_at || 0).getTime() - new Date((a as any).created_at || 0).getTime());
   const hiddenCount = products.filter(p => p.is_hidden).length;
 
-  // الإحصائيات حسب الفلاتر المختارة (الموسم + التصنيف + المخزن).
+  // الإحصائيات حسب الفلاتر المختارة (التصنيف + المخزن).
   const statsBase = products.filter(p => !p.is_hidden
-    && (selectedCategory === 'all' || p.category_id === selectedCategory)
-    && (seasonFilter === 'all' || p.season === seasonFilter));
+    && (selectedCategory === 'all' || p.category_id === selectedCategory));
   const totalStockValue = statsBase.reduce((acc, p) => acc + (qtyOf(p) * (p.average_purchase_price || p.purchase_price || 0)), 0);
   const lowStockCount = statsBase.filter(p => qtyOf(p) < 5).length;
   const totalItems = statsBase.reduce((acc, p) => acc + qtyOf(p), 0);
@@ -590,7 +588,7 @@ export default function Inventory() {
   };
 
   // أعمدة قالب الاستيراد. الترتيب لا يهم عند القراءة — نبحث عن العمود بالاسم.
-  const TEMPLATE_HEADERS = ['الباركود', 'اسم المنتج', 'التصنيف', 'المورد', 'الوحدة', 'سعر الشراء', 'سعر البيع', 'سعر الخصم', 'سعر الجملة', 'سعر نص الجملة', 'الموسم (صيفي/شتوي/سنوي)', 'كمية المستودع', 'كمية المحل'];
+  const TEMPLATE_HEADERS = ['الباركود', 'اسم المنتج', 'التصنيف', 'المورد', 'الوحدة', 'سعر الشراء', 'سعر البيع', 'سعر الخصم', 'سعر الجملة', 'سعر نص الجملة', 'كمية المستودع', 'كمية المحل'];
 
   // تصدير قالب Excel جاهز للتعبئة وإعادة الاستيراد (يحتوي المنتجات الحالية حسب الفلاتر المختارة).
   const exportTemplate = () => {
@@ -605,7 +603,6 @@ export default function Inventory() {
       p.discount_price || 0,
       p.wholesale_price || 0,
       p.half_wholesale_price || 0,
-      p.season === 'winter' ? 'شتوي' : p.season === 'annual' ? 'سنوي' : 'صيفي',
       Math.max(0, (Number(p.stock_quantity) || 0) - dispOf(p)), // كمية المستودع
       dispOf(p),                                                // كمية المحل
     ]);

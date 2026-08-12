@@ -5,9 +5,7 @@ import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { beepSuccess, beepError } from '../../utils/beep';
 
 type Location = 'all' | 'warehouse' | 'display';
-type Season = 'all' | 'summer' | 'winter' | 'annual';
 
-const SEASON_LABEL: Record<string, string> = { summer: 'صيفي', winter: 'شتوي', annual: 'سنوي', all: 'كل المواسم' };
 const LOCATION_LABEL: Record<Location, string> = { all: 'كل المخزن', warehouse: 'المستودع', display: 'المحل' };
 
 // نفس الباركود بيتقرا في كذا فريم ورا بعض — بنتجاهل تكراره خلال المدة دي.
@@ -37,7 +35,6 @@ export default function StockTake() {
   const { products, storeSettings, adjustStock } = useStore();
   const cur = storeSettings.currency;
   const [search, setSearch] = useState('');
-  const [seasonFilter, setSeasonFilter] = useState<Season>('all');
   const [stockLocation, setStockLocation] = useState<Location>('all');
   const [counts, setCounts] = useState<Record<string, string>>({});
   const [note, setNote] = useState('');
@@ -203,10 +200,9 @@ export default function StockTake() {
     const q = search.trim().toLowerCase();
     return products
       .filter((p) => !p.is_hidden)
-      .filter((p) => seasonFilter === 'all' || p.season === seasonFilter)
       .filter((p) => !q || p.name.toLowerCase().includes(q) || (p.barcode || '').includes(q))
       .filter((p) => !onlyCounted || (counts[p.id] !== undefined && counts[p.id] !== ''));
-  }, [products, search, seasonFilter, onlyCounted, counts]);
+  }, [products, search, onlyCounted, counts]);
 
   const rows = list.map((p) => {
     const system = systemOf(p);
@@ -283,17 +279,8 @@ export default function StockTake() {
         )}
       </div>
 
-      {/* فلاتر: الموسم + المخزن */}
+      {/* فلاتر: المخزن */}
       <div className="flex items-center gap-3 flex-wrap">
-        <div className="flex items-center gap-2 bg-white dark:bg-slate-800 rounded-2xl p-2 shadow-sm border border-slate-100 dark:border-slate-700 w-fit">
-          <span className="text-xs font-bold text-slate-500 dark:text-slate-400 px-2">الموسم:</span>
-          {([['all', 'الكل'], ['summer', 'صيفي'], ['winter', 'شتوي'], ['annual', 'سنوي']] as const).map(([k, label]) => (
-            <button key={k} onClick={() => setSeasonFilter(k)}
-              className={`px-4 py-2 rounded-xl text-sm font-bold transition ${seasonFilter === k ? 'bg-amber-500 text-white shadow' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'}`}>
-              {label}
-            </button>
-          ))}
-        </div>
         <div className="flex items-center gap-2 bg-white dark:bg-slate-800 rounded-2xl p-2 shadow-sm border border-slate-100 dark:border-slate-700 w-fit">
           <span className="text-xs font-bold text-slate-500 dark:text-slate-400 px-2">المخزن:</span>
           {([['all', 'الكل'], ['warehouse', 'المستودع'], ['display', 'المحل']] as const).map(([k, label]) => (
@@ -332,7 +319,7 @@ export default function StockTake() {
               {rows.length === 0 ? <tr><td colSpan={6} className="text-center text-slate-400 py-8">لا توجد منتجات</td></tr>
                 : rows.map((r) => (
                   <tr key={r.p.id} className={`border-b border-slate-100 dark:border-slate-700/50 ${r.counted !== null && Math.abs(r.diff) > 0.0001 ? (r.diff < 0 ? 'bg-red-50/40 dark:bg-red-900/10' : 'bg-emerald-50/40 dark:bg-emerald-900/10') : ''}`}>
-                    <td className="p-3 font-bold text-slate-800 dark:text-slate-100">{r.p.name}{r.p.season ? <span className="mr-1 text-[10px] font-bold text-amber-600 dark:text-amber-400">· {SEASON_LABEL[r.p.season] || r.p.season}</span> : ''}</td>
+                    <td className="p-3 font-bold text-slate-800 dark:text-slate-100">{r.p.name}</td>
                     <td className="p-3 font-mono text-xs text-slate-500 dark:text-slate-400">{r.p.barcode || '-'}</td>
                     <td className="p-3 text-center font-bold">{r.system}</td>
                     <td className="p-3 text-center">

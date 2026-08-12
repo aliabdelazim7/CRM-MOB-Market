@@ -174,14 +174,14 @@ export interface Product {
   discount_price?: number; // سعر البيع بعد الخصم (قطاعي)
   wholesale_price?: number; // سعر الجملة
   half_wholesale_price?: number; // سعر نص الجملة
-  season?: string; // 'summer' / 'winter'
+  season?: string; // (deprecated)
   stock_quantity: number;
   display_quantity?: number; // الكمية المعروضة في المحل (الباقي في المستودع)
   factory_quantity?: number; // كمية مخزن المصنع (غير متاحة للبيع حتى تُحوَّل)
   category_id: string;
-  unit: string; // وحدة المنتج: قطعة / كيلو / جرام / لتر ... (المخزون والسعر بهذه الوحدة)
+  unit: string; // وحدة المنتج: قطعة / كيلو / جرام / لتر / علبة / كرتونة / شكارة
   is_hidden?: boolean; // إخفاء المنتج من الكاشير دون حذفه
-  color?: string; // لون المنتج (لملابس)
+  color?: string; // (deprecated)
   supplier_name?: string; // اسم المورد الذي يُورّد هذا المنتج (نصّي، للربط عبر الاسم)
   // أسعار ومصاريف المتاجر والمنصات (Website, Amazon, Noon, Jumia, Custom)
   website_ad_cost?: number;
